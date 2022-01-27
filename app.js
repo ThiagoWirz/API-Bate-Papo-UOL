@@ -11,13 +11,22 @@ app.use(express.json())
 
 app.post("/participants", async (req, res) =>{
     const participant = { name: req.body.name, lastStatus : Date.now()};
+    const logInMessage = {
+        from: req.body.name,
+        to: "Todos",
+        text: "entra na sala...",
+        type: "status",
+        time: dayjs().format("HH:mm:ss")
+    }
     const mongoClient = new MongoClient(process.env.MONGO_URI)
     const connection = await mongoClient.connect()
 
     try{ 
         const dbBatePapoUOL = connection.db("bate-papo-uol")
         const participantsCollection = dbBatePapoUOL.collection("participants")
+        const messagesCollection = dbBatePapoUOL.collection("messages")
         await participantsCollection.insertOne(participant)
+        await messagesCollection.insertOne(logInMessage)
         res.sendStatus(201)
         connection.close()
     }
