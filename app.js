@@ -98,6 +98,28 @@ app.get("/messages", async (req, res) => {
   }
 });
 
+app.post("/status", async (req, res) =>{
+    const user = req.header("User")
+    const mongoClient = new MongoClient(process.env.MONGO_URI);
+    const connection = await mongoClient.connect()
+
+    try{
+        const dbBatePapoUOL = connection.db("bate-papo-uol")
+        const participantsCollection = dbBatePapoUOL.collection("participants")
+        const participantsArray = await participantsCollection.find({}).toArray()
+        if(!participantsArray.find( p => p.name === user)){
+            console.log("n tah aqui")
+            res.sendStatus(404);
+        }
+        else{
+            res.send("ok")
+        }
+    }
+    catch{
+        console.log("nada")
+    }
+})
+
 app.listen(4000, () => {
   console.log("Rodando em http://localhost:4000");
 });
