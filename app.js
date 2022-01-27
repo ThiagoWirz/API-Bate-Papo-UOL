@@ -78,6 +78,24 @@ app.post("/messages", async (req, res) =>{
     }
 })
 
+app.get("/messages", async (req, res) =>{
+    const mongoClient = new MongoClient(process.env.MONGO_URI)
+    const connection = await mongoClient.connect()
+
+    try{ 
+        const dbBatePapoUOL = connection.db("bate-papo-uol")
+        const messagesCollection = dbBatePapoUOL.collection("messages")
+        const messagesArray = await messagesCollection.find({}).toArray()
+        res.send(messagesArray)
+        connection.close()
+    }
+    catch{
+        res.sendStatus(500)
+        connection.close()
+    }
+
+})
+
 app.listen(4000, () => {
     console.log("Rodando em http://localhost:4000")
 })
