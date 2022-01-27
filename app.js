@@ -74,7 +74,8 @@ app.post("/messages", async (req, res) => {
 });
 
 app.get("/messages", async (req, res) => {
-  const limit = parseInt(req.query.limit); 
+  const limit = parseInt(req.query.limit);
+  const user = req.header("User")
   const mongoClient = new MongoClient(process.env.MONGO_URI);
   const connection = await mongoClient.connect();
   
@@ -82,11 +83,13 @@ app.get("/messages", async (req, res) => {
     const dbBatePapoUOL = connection.db("bate-papo-uol");
     const messagesCollection = dbBatePapoUOL.collection("messages");
     const messagesArray = await messagesCollection.find({}).toArray();
+    const invertedMessages = messagesArray.reverse()
+    const filteredMessages = invertedMessages.filter( m => (m.type !== "private_message") || (m.to === user || m.from === user || m.to === "Todos"))
     if(!limit) {
-      res.send(messagesArray.reverse());
+      res.send(filteredMessages);
       connection.close();
     } else{
-        res.send(messagesArray.slice(-(limit)))
+        res.send(filteredMessages.slice(limit))
         connection.close();
     }
   } catch {
