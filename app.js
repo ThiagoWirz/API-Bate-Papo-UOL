@@ -108,15 +108,18 @@ app.post("/status", async (req, res) =>{
         const participantsCollection = dbBatePapoUOL.collection("participants")
         const participantsArray = await participantsCollection.find({}).toArray()
         if(!participantsArray.find( p => p.name === user)){
-            console.log("n tah aqui")
             res.sendStatus(404);
+            connection.close()
         }
         else{
-            res.send("ok")
+           await participantsCollection.updateOne({name: user}, {$set: {lastStatus: Date.now()}})
+            res.sendStatus(200)
+            connection.close()
         }
     }
     catch{
-        console.log("nada")
+        res.sendStatus(500);
+        connection.close();
     }
 })
 
