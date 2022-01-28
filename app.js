@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 import dayjs from "dayjs";
 import { MongoClient, ObjectId } from "mongodb";
 import joi from "joi";
-import { strict as assert } from "assert";
 import { stripHtml } from "string-strip-html";
 dotenv.config();
 
@@ -57,7 +56,6 @@ app.post("/participants", async (req, res) => {
     res.sendStatus(422);
     return;
   }
-  const { result } = stripHtml(req.body.name);
   const mongoClient = new MongoClient(process.env.MONGO_URI);
   const connection = await mongoClient.connect();
 
@@ -65,18 +63,18 @@ app.post("/participants", async (req, res) => {
     const dbBatePapoUOL = connection.db("bate-papo-uol");
     const participantsCollection = dbBatePapoUOL.collection("participants");
     const participants = await participantsCollection.find({}).toArray();
-    if (participants.find((p) => p.name === result)) {
+    if (participants.find((p) => p.name === stripHtml(req.body.name).result.trim())) {
       res.sendStatus(409);
       connection.close();
       return;
     }
     const messagesCollection = dbBatePapoUOL.collection("messages");
     await participantsCollection.insertOne({
-      name: result,
+      name: stripHtml(req.body.name).result.trim(),
       lastStatus: Date.now(),
     });
     await messagesCollection.insertOne({
-      from: result,
+      from: stripHtml(req.body.name).result.trim(),
       to: "Todos",
       text: "entra na sala...",
       type: "status",
@@ -122,16 +120,16 @@ app.post("/messages", async (req, res) => {
     const messagesCollection = dbBatePapoUOL.collection("messages");
     const participantsCollection = dbBatePapoUOL.collection("participants");
     const participants = await participantsCollection.find({}).toArray();
-    if (!participants.find((p) => p.name === req.header("User"))) {
+    if (!participants.find((p) => p.name === stripHtml(req.header("User")).result.trim())) {
       res.sendStatus(422);
       connection.close();
       return;
     }
     await messagesCollection.insertOne({
-      from: req.header("User"),
-      to: req.body.to,
-      text: req.body.text,
-      type: req.body.type,
+      from: stripHtml(req.header("User")).result.trim(),
+      to: stripHtml(req.body.to).result.trim(),
+      text: stripHtml(req.body.text).result.trim(),
+      type: stripHtml(req.body.type).result.trim(),
       time: dayjs().format("HH:mm:ss"),
     });
     res.sendStatus(201);
@@ -152,8 +150,7 @@ app.get("/messages", async (req, res) => {
     const dbBatePapoUOL = connection.db("bate-papo-uol");
     const messagesCollection = dbBatePapoUOL.collection("messages");
     const messagesArray = await messagesCollection.find({}).toArray();
-    const invertedMessages = messagesArray.reverse();
-    const filteredMessages = invertedMessages.filter(
+    const filteredMessages = messagesArray.filter(
       (m) =>
         m.type !== "private_message" ||
         m.to === user ||
@@ -164,7 +161,7 @@ app.get("/messages", async (req, res) => {
       res.send(filteredMessages);
       connection.close();
     } else {
-      res.send(filteredMessages.slice( 0, limit));
+      res.send(filteredMessages.slice(-limit));
       connection.close();
     }
   } catch {
@@ -174,7 +171,7 @@ app.get("/messages", async (req, res) => {
 });
 
 app.post("/status", async (req, res) => {
-  const user = req.header("User");
+  const user = stripHtml(req.header("User")).result.trim();
   const mongoClient = new MongoClient(process.env.MONGO_URI);
   const connection = await mongoClient.connect();
 
@@ -223,7 +220,7 @@ app.delete("/messages/:id", async (req, res) => {
   connection.close();
 });
 
-app.put("messages/:id", async (req, res) => {
+app.put("/messages/:id", async (req, res) => {
   const validation = messageSchema.validate(req.body, {
     abortEarly: true,
   });
@@ -240,7 +237,8 @@ app.put("messages/:id", async (req, res) => {
   const participantsCollection = dbBatePapoUOL.collection("participants");
   const participant = await participantsCollection.findOne({name: user})
   const message = await messagesCollection.findOne({ _id: new ObjectId(id) });
-  if(!participant || !message){
+  
+  if((!participant) || (!message)){
       res.sendStatus(404)
       connection.close()
       return
@@ -250,7 +248,8 @@ app.put("messages/:id", async (req, res) => {
       connection.close()
       return
   }
-  await messagesCollection.updateOne({ _id: new ObjectId(id)}, {$set: {...req.body, time: dayjs().format("HH:mm:ss")}})
+  await messagesCollection.updateOne({ _id: new ObjectId(id)}, {$set: {to: stripHtml(req.body.to).result.trim(), text: stripHtml(req.body.text).result.trim(), type: stripHtml(req.body.type).result.trim(), time: dayjs().format("HH:mm:ss")}})
+  connection.close()
   
 });
 app.listen(5000, () => {
