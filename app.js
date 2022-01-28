@@ -9,6 +9,34 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+
+setInterval( async () => {
+    try{
+    const mongoClient = new MongoClient(process.env.MONGO_URI)
+    const connection = await mongoClient.connect()
+    const dbBatePapoUOL = connection.db("bate-papo-uol");
+    const participantsCollection = dbBatePapoUOL.collection("participants");
+    const messagesCollection = dbBatePapoUOL.collection("messages");
+    const participants = await participantsCollection.find({}).toArray()
+
+    for(const participant of participants){
+        if(Date.now() - participant.lastStatus > 10000 ){
+            await participantsCollection.deleteOne({name: participant.name})
+            await messagesCollection.insertOne({ 
+            from: participant.name,
+            to: "Todos",
+            text: "sai da sala...",
+            type: "status",
+            time: dayjs().format("HH:mm:ss"),
+            })
+        }
+    }
+    connection.close()}
+    catch (error){
+        console.log(error)
+    }
+}, 15000)
+
 app.post("/participants", async (req, res) => {
   const participant = { name: req.body.name, lastStatus: Date.now() };
   const logInMessage = {
