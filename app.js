@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import dayjs from "dayjs";
 import { MongoClient } from "mongodb";
 import joi from "joi";
+import { strict as assert } from "assert";
+import { stripHtml } from "string-strip-html";
 dotenv.config();
 
 const app = express();
@@ -48,6 +50,7 @@ setInterval(async () => {
 }, 15000);
 
 app.post("/participants", async (req, res) => {
+
   const validation = participantSchema.validate(req.body, {
     abortEarly: true,
   });
@@ -55,6 +58,7 @@ app.post("/participants", async (req, res) => {
     res.sendStatus(422);
     return;
   }
+  const {result} = stripHtml(req.body.name)
   const mongoClient = new MongoClient(process.env.MONGO_URI);
   const connection = await mongoClient.connect();
 
@@ -62,18 +66,18 @@ app.post("/participants", async (req, res) => {
     const dbBatePapoUOL = connection.db("bate-papo-uol");
     const participantsCollection = dbBatePapoUOL.collection("participants");
     const participants = await participantsCollection.find({}).toArray();
-    if (participants.find((p) => p.name === req.body.name)) {
+    if (participants.find((p) => p.name === result)) {
       res.sendStatus(409);
       connection.close()
       return;
     }
     const messagesCollection = dbBatePapoUOL.collection("messages");
     await participantsCollection.insertOne({
-      name: req.body.name,
+      name: result,
       lastStatus: Date.now(),
     });
     await messagesCollection.insertOne({
-      from: req.body.name,
+      from: result,
       to: "Todos",
       text: "entra na sala...",
       type: "status",
@@ -112,13 +116,7 @@ app.post("/messages", async (req, res) => {
         res.sendStatus(422);
         return;
       }
-//   const message = {
-//     from: req.header("User"),
-//     to: req.body.to,
-//     text: req.body.text,
-//     type: req.body.type,
-//     time: dayjs().format("HH:mm:ss"),
-//   };
+
   const mongoClient = new MongoClient(process.env.MONGO_URI);
   const connection = await mongoClient.connect();
   try {
