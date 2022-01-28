@@ -17,9 +17,9 @@ const participantSchema = joi.object({
 });
 
 const messageSchema = joi.object({
-    to: joi.string().required(),
-    text: joi.string().required(),
-    type: joi.string().required().valid('message', 'private_message'),
+  to: joi.string().required(),
+  text: joi.string().required(),
+  type: joi.string().required().valid("message", "private_message"),
 });
 
 setInterval(async () => {
@@ -50,7 +50,6 @@ setInterval(async () => {
 }, 15000);
 
 app.post("/participants", async (req, res) => {
-
   const validation = participantSchema.validate(req.body, {
     abortEarly: true,
   });
@@ -58,7 +57,7 @@ app.post("/participants", async (req, res) => {
     res.sendStatus(422);
     return;
   }
-  const {result} = stripHtml(req.body.name)
+  const { result } = stripHtml(req.body.name);
   const mongoClient = new MongoClient(process.env.MONGO_URI);
   const connection = await mongoClient.connect();
 
@@ -68,7 +67,7 @@ app.post("/participants", async (req, res) => {
     const participants = await participantsCollection.find({}).toArray();
     if (participants.find((p) => p.name === result)) {
       res.sendStatus(409);
-      connection.close()
+      connection.close();
       return;
     }
     const messagesCollection = dbBatePapoUOL.collection("messages");
@@ -108,33 +107,32 @@ app.get("/participants", async (req, res) => {
 });
 
 app.post("/messages", async (req, res) => {
-
-    const validation = messageSchema.validate(req.body, {
-        abortEarly: true,
-      });
-      if (validation.error) {
-        res.sendStatus(422);
-        return;
-      }
+  const validation = messageSchema.validate(req.body, {
+    abortEarly: true,
+  });
+  if (validation.error) {
+    res.sendStatus(422);
+    return;
+  }
 
   const mongoClient = new MongoClient(process.env.MONGO_URI);
   const connection = await mongoClient.connect();
   try {
     const dbBatePapoUOL = connection.db("bate-papo-uol");
     const messagesCollection = dbBatePapoUOL.collection("messages");
-    const participantsCollection = dbBatePapoUOL.collection("participants")
-    const participants = await participantsCollection.find({}).toArray()
-    if(!participants.find(p => p.name === req.header("User"))){
-        res.sendStatus(422);
-        connection.close()
-        return
+    const participantsCollection = dbBatePapoUOL.collection("participants");
+    const participants = await participantsCollection.find({}).toArray();
+    if (!participants.find((p) => p.name === req.header("User"))) {
+      res.sendStatus(422);
+      connection.close();
+      return;
     }
     await messagesCollection.insertOne({
-        from: req.header("User"),
-        to: req.body.to,
-        text: req.body.text,
-        type: req.body.type,
-        time: dayjs().format("HH:mm:ss")
+      from: req.header("User"),
+      to: req.body.to,
+      text: req.body.text,
+      type: req.body.type,
+      time: dayjs().format("HH:mm:ss"),
     });
     res.sendStatus(201);
     connection.close();
@@ -166,7 +164,7 @@ app.get("/messages", async (req, res) => {
       res.send(filteredMessages);
       connection.close();
     } else {
-      res.send(filteredMessages.slice(limit));
+      res.send(filteredMessages.slice( 0, limit));
       connection.close();
     }
   } catch {
@@ -201,32 +199,60 @@ app.post("/status", async (req, res) => {
   }
 });
 
-app.delete("/messages/:id", async (req, res) =>{
-    const id = req.params.id
-    const user = req.header("User")
-    const mongoClient = new MongoClient(process.env.MONGO_URI);
-    const connection = await mongoClient.connect();
-    const dbBatePapoUOL = connection.db("bate-papo-uol");
-    const messagesCollection = dbBatePapoUOL.collection("messages");
-    const message = await messagesCollection.findOne({_id: new ObjectId(id)})
-   
-    if(!message){
-        res.sendStatus(404)
-        console.log("Nao achou")
-        connection.close()
-        return
-    }
-    if(user !== message.from || message.type === "status"){
-        res.sendStatus(401)
-        connection.close()
-        return
-    }
-    await messagesCollection.deleteOne({_id: new ObjectId(id)})
-    res.send("Mensagem removida")
-    connection.close()
-    
-})
+app.delete("/messages/:id", async (req, res) => {
+  const id = req.params.id;
+  const user = req.header("User");
+  const mongoClient = new MongoClient(process.env.MONGO_URI);
+  const connection = await mongoClient.connect();
+  const dbBatePapoUOL = connection.db("bate-papo-uol");
+  const messagesCollection = dbBatePapoUOL.collection("messages");
+  const message = await messagesCollection.findOne({ _id: new ObjectId(id) });
 
-app.listen(4000, () => {
-  console.log("Rodando em http://localhost:4000");
+  if (!message) {
+    res.sendStatus(404);
+    connection.close();
+    return;
+  }
+  if (user !== message.from || message.type === "status") {
+    res.sendStatus(401);
+    connection.close();
+    return;
+  }
+  await messagesCollection.deleteOne({ _id: new ObjectId(id) });
+  res.sendStatus(200);
+  connection.close();
+});
+
+app.put("messages/:id", async (req, res) => {
+  const validation = messageSchema.validate(req.body, {
+    abortEarly: true,
+  });
+  if (validation.error) {
+    res.sendStatus(422);
+    return;
+  }
+  const id = req.params.id
+  const user = req.header("User")
+  const mongoClient = new MongoClient(process.env.MONGO_URI);
+  const connection = await mongoClient.connect();
+  const dbBatePapoUOL = connection.db("bate-papo-uol");
+  const messagesCollection = dbBatePapoUOL.collection("messages");
+  const participantsCollection = dbBatePapoUOL.collection("participants");
+  const participant = await participantsCollection.findOne({name: user})
+  const message = await messagesCollection.findOne({ _id: new ObjectId(id) });
+  if(!participant || !message){
+      res.sendStatus(404)
+      connection.close()
+      return
+  }
+  if(message.from !== user){
+      res.sendStatus(401)
+      connection.close()
+      return
+  }
+  await messagesCollection.updateOne({ _id: new ObjectId(id)}, {$set: {...req.body, time: dayjs().format("HH:mm:ss")}})
+  
+});
+app.listen(5000, () => {
+  console.log("Rodando em http://localhost:5000");
 });
