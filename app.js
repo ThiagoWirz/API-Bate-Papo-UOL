@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import dayjs from "dayjs";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import joi from "joi";
 import { strict as assert } from "assert";
 import { stripHtml } from "string-strip-html";
@@ -200,6 +200,32 @@ app.post("/status", async (req, res) => {
     connection.close();
   }
 });
+
+app.delete("/messages/:id", async (req, res) =>{
+    const id = req.params.id
+    const user = req.header("User")
+    const mongoClient = new MongoClient(process.env.MONGO_URI);
+    const connection = await mongoClient.connect();
+    const dbBatePapoUOL = connection.db("bate-papo-uol");
+    const messagesCollection = dbBatePapoUOL.collection("messages");
+    const message = await messagesCollection.findOne({_id: new ObjectId(id)})
+   
+    if(!message){
+        res.sendStatus(404)
+        console.log("Nao achou")
+        connection.close()
+        return
+    }
+    if(user !== message.from || message.type === "status"){
+        res.sendStatus(401)
+        connection.close()
+        return
+    }
+    await messagesCollection.deleteOne({_id: new ObjectId(id)})
+    res.send("Mensagem removida")
+    connection.close()
+    
+})
 
 app.listen(4000, () => {
   console.log("Rodando em http://localhost:4000");
