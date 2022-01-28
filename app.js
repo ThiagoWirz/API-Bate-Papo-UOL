@@ -14,6 +14,12 @@ const participantSchema = joi.object({
   name: joi.string().required(),
 });
 
+const messageSchema = joi.object({
+    to: joi.string().required(),
+    text: joi.string().required(),
+    type: joi.string().required().valid('message', 'private_message'),
+});
+
 setInterval(async () => {
   try {
     const mongoClient = new MongoClient(process.env.MONGO_URI);
@@ -43,20 +49,12 @@ setInterval(async () => {
 
 app.post("/participants", async (req, res) => {
   const validation = participantSchema.validate(req.body, {
-    abortEarly: false,
+    abortEarly: true,
   });
   if (validation.error) {
     res.sendStatus(422);
     return;
   }
-  //   const participant = { name: req.body.name, lastStatus: Date.now() };
-  //   const logInMessage = {
-  //     from: req.body.name,
-  //     to: "Todos",
-  //     text: "entra na sala...",
-  //     type: "status",
-  //     time: dayjs().format("HH:mm:ss"),
-  //   };
   const mongoClient = new MongoClient(process.env.MONGO_URI);
   const connection = await mongoClient.connect();
 
@@ -66,6 +64,7 @@ app.post("/participants", async (req, res) => {
     const participants = await participantsCollection.find({}).toArray();
     if (participants.find((p) => p.name === req.body.name)) {
       res.sendStatus(409);
+      connection.close()
       return;
     }
     const messagesCollection = dbBatePapoUOL.collection("messages");
@@ -105,19 +104,40 @@ app.get("/participants", async (req, res) => {
 });
 
 app.post("/messages", async (req, res) => {
-  const message = {
-    from: req.header("User"),
-    to: req.body.to,
-    text: req.body.text,
-    type: req.body.type,
-    time: dayjs().format("HH:mm:ss"),
-  };
+
+    const validation = messageSchema.validate(req.body, {
+        abortEarly: true,
+      });
+      if (validation.error) {
+        res.sendStatus(422);
+        return;
+      }
+//   const message = {
+//     from: req.header("User"),
+//     to: req.body.to,
+//     text: req.body.text,
+//     type: req.body.type,
+//     time: dayjs().format("HH:mm:ss"),
+//   };
   const mongoClient = new MongoClient(process.env.MONGO_URI);
   const connection = await mongoClient.connect();
   try {
     const dbBatePapoUOL = connection.db("bate-papo-uol");
     const messagesCollection = dbBatePapoUOL.collection("messages");
-    await messagesCollection.insertOne(message);
+    const participantsCollection = dbBatePapoUOL.collection("participants")
+    const participants = await participantsCollection.find({}).toArray()
+    if(!participants.find(p => p.name === req.header("User"))){
+        res.sendStatus(422);
+        connection.close()
+        return
+    }
+    await messagesCollection.insertOne({
+        from: req.header("User"),
+        to: req.body.to,
+        text: req.body.text,
+        type: req.body.type,
+        time: dayjs().format("HH:mm:ss")
+    });
     res.sendStatus(201);
     connection.close();
   } catch {
