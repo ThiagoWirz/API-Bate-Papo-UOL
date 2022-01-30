@@ -22,10 +22,10 @@ const messageSchema = joi.object({
   type: joi.string().required().valid("message", "private_message"),
 });
 
-const mongoClient = new MongoClient(process.env.MONGO_URI)
-mongoClient.connect(() =>{
-  dbBatePapoUOL = mongoClient.db("bate-papo-uol")
-})
+const mongoClient = new MongoClient(process.env.MONGO_URI);
+mongoClient.connect(() => {
+  dbBatePapoUOL = mongoClient.db("bate-papo-uol");
+});
 
 setInterval(async () => {
   try {
@@ -46,7 +46,7 @@ setInterval(async () => {
       }
     }
   } catch (error) {
-    console.log(error);
+    console.error(error);
   }
 }, 15000);
 
@@ -89,7 +89,6 @@ app.post("/participants", async (req, res) => {
 });
 
 app.get("/participants", async (req, res) => {
-
   try {
     const participantsCollection = dbBatePapoUOL.collection("participants");
     const participantsArray = await participantsCollection.find({}).toArray();
@@ -139,14 +138,9 @@ app.get("/messages", async (req, res) => {
 
   try {
     const messagesCollection = dbBatePapoUOL.collection("messages");
-    const messagesArray = await messagesCollection.find({}).toArray();
-    const filteredMessages = messagesArray.filter(
-      (m) =>
-        m.type !== "private_message" ||
-        m.to === user ||
-        m.from === user ||
-        m.to === "Todos"
-    );
+    const filteredMessages = await messagesCollection
+      .find({ $or: [{ to: user }, { to: "Todos" }, { from: user }] })
+      .toArray();
     if (!limit) {
       res.send(filteredMessages);
     } else {
