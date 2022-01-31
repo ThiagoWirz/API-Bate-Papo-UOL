@@ -110,12 +110,8 @@ app.post("/messages", async (req, res) => {
   try {
     const messagesCollection = dbBatePapoUOL.collection("messages");
     const participantsCollection = dbBatePapoUOL.collection("participants");
-    const participants = await participantsCollection.find({}).toArray();
-    if (
-      !participants.find(
-        (p) => p.name === stripHtml(req.header("User")).result.trim()
-      )
-    ) {
+    const participant = await participantsCollection.find({name: req.header("User")});
+    if (!participant.name) {
       res.sendStatus(422);
       return;
     }
@@ -156,12 +152,12 @@ app.post("/status", async (req, res) => {
 
   try {
     const participantsCollection = dbBatePapoUOL.collection("participants");
-    const participantsArray = await participantsCollection.find({}).toArray();
-    if (!participantsArray.find((p) => p.name === user)) {
+    const participant = await participantsCollection.findOne({name: user});
+    if (!participant) {
       res.sendStatus(404);
     } else {
       await participantsCollection.updateOne(
-        { name: user },
+        { _id: new ObjectId(participant._id) },
         { $set: { lastStatus: Date.now() } }
       );
       res.sendStatus(200);
@@ -224,6 +220,4 @@ app.put("/messages/:id", async (req, res) => {
     }
   );
 });
-app.listen(5000, () => {
-  console.log("Rodando em http://localhost:5000");
-});
+app.listen(5000);
