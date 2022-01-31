@@ -64,7 +64,7 @@ app.post("/participants", async (req, res) => {
     const participants = await participantsCollection.find({}).toArray();
     if (
       participants.find(
-        (p) => p.name === stripHtml(req.body.name).result.trim()
+        (p) => p.name.toLowerCase() === stripHtml(req.body.name).result.trim().toLowerCase()
       )
     ) {
       res.sendStatus(409);
