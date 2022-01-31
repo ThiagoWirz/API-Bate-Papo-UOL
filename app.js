@@ -110,8 +110,8 @@ app.post("/messages", async (req, res) => {
   try {
     const messagesCollection = dbBatePapoUOL.collection("messages");
     const participantsCollection = dbBatePapoUOL.collection("participants");
-    const participant = await participantsCollection.find({name: req.header("User")});
-    if (!participant.name) {
+    const participant = await participantsCollection.findOne({name: req.header("User")});
+    if (!participant) {
       res.sendStatus(422);
       return;
     }
