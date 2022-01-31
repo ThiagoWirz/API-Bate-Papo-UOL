@@ -35,7 +35,7 @@ setInterval(async () => {
 
     for (const participant of participants) {
       if (Date.now() - participant.lastStatus > 10000) {
-        await participantsCollection.deleteOne({ name: participant.name });
+        await participantsCollection.deleteOne({ _id: new ObjectId(participant._id) });
         await messagesCollection.insertOne({
           from: participant.name,
           to: "Todos",
